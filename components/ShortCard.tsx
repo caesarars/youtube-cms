@@ -23,7 +23,7 @@ export default function ShortCard({ short, onDelete, onCopy }: ShortCardProps) {
   return (
     <div className="bg-[#111111] border border-[#222222] rounded-xl p-5 hover:border-[#c9a84c]/30 transition-all group">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <Link href={`/short/${short.id}`} className="flex-1 min-w-0">
+        <Link href={`/short/${short._id}`} className="flex-1 min-w-0">
           <h3 className="text-[#e8e8e8] font-semibold text-sm leading-snug group-hover:text-[#c9a84c] transition-colors line-clamp-2">
             {short.title}
           </h3>
@@ -57,14 +57,14 @@ export default function ShortCard({ short, onDelete, onCopy }: ShortCardProps) {
           <span>🎨</span> Prompts
         </button>
         <Link
-          href={`/short/${short.id}`}
+          href={`/short/${short._id}`}
           className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[#888888] hover:text-[#e8e8e8] hover:bg-[#1a1a1a] transition-colors"
           title="Edit"
         >
           <span>✏️</span> Edit
         </Link>
         <button
-          onClick={() => onDelete(short.id)}
+          onClick={() => onDelete(short._id)}
           className="flex items-center gap-1 px-2 py-1 rounded text-xs text-[#888888] hover:text-red-400 hover:bg-red-900/20 transition-colors ml-auto"
           title="Delete"
         >

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Short, Status } from '@/lib/types';
-import { getShorts, saveShort, deleteShort } from '@/lib/storage';
 import ShortCard from '@/components/ShortCard';
 import AddShortModal from '@/components/AddShortModal';
 import Toast from '@/components/Toast';
@@ -11,13 +10,26 @@ const FILTER_TABS: (Status | 'All')[] = ['All', 'Idea', 'Script Ready', 'Visual 
 
 export default function Dashboard() {
   const [shorts, setShorts] = useState<Short[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Status | 'All'>('All');
   const [modalOpen, setModalOpen] = useState(false);
   const [editShort, setEditShort] = useState<Short | null>(null);
   const [toast, setToast] = useState({ show: false, message: '' });
 
+  const fetchShorts = async () => {
+    try {
+      const res = await fetch('/api/shorts');
+      const data = await res.json();
+      setShorts(data);
+    } catch (err) {
+      console.error('Failed to fetch shorts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setShorts(getShorts());
+    fetchShorts();
   }, []);
 
   const filteredShorts = filter === 'All'
@@ -31,18 +43,41 @@ export default function Dashboard() {
     published: shorts.filter((s) => s.status === 'Published').length,
   };
 
-  const handleSave = (short: Short) => {
-    saveShort(short);
-    setShorts(getShorts());
-    setEditShort(null);
-    showToast(editShort ? 'Short updated successfully' : 'Short created successfully');
+  const handleSave = async (shortData: Omit<Short, '_id' | 'createdAt' | 'updatedAt'> & { _id?: string }) => {
+    try {
+      if (shortData._id) {
+        await fetch(`/api/shorts/${shortData._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(shortData),
+        });
+        showToast('Short updated successfully');
+      } else {
+        await fetch('/api/shorts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(shortData),
+        });
+        showToast('Short created successfully');
+      }
+      await fetchShorts();
+      setEditShort(null);
+    } catch (err) {
+      console.error('Failed to save short:', err);
+      showToast('Failed to save short');
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this short?')) {
-      deleteShort(id);
-      setShorts(getShorts());
-      showToast('Short deleted');
+      try {
+        await fetch(`/api/shorts/${id}`, { method: 'DELETE' });
+        await fetchShorts();
+        showToast('Short deleted');
+      } catch (err) {
+        console.error('Failed to delete short:', err);
+        showToast('Failed to delete short');
+      }
     }
   };
 
@@ -123,7 +158,19 @@ export default function Dashboard() {
         </div>
 
         {/* Shorts Grid */}
-        {filteredShorts.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <svg
+              className="animate-spin h-8 w-8 text-[#c9a84c]"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          </div>
+        ) : filteredShorts.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-[#888888] text-lg">No shorts found</p>
             <p className="text-[#555555] text-sm mt-1">
@@ -134,7 +181,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredShorts.map((short) => (
               <ShortCard
-                key={short.id}
+                key={short._id}
                 short={short}
                 onDelete={handleDelete}
                 onCopy={handleCopy}

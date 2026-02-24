@@ -1,5 +1,5 @@
 export interface Short {
-  id: string;
+  _id: string;
   title: string;
   civilization: 'Egypt' | 'Rome' | 'Greece' | 'Mesopotamia' | 'Persia';
   status: 'Idea' | 'Script Ready' | 'Visual Ready' | 'Published';

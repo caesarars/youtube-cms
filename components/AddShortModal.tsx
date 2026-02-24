@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Short, CIVILIZATIONS, STATUSES, Civilization, Status } from '@/lib/types';
 import GenerateButton from './GenerateButton';
 
 interface AddShortModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (short: Short) => void;
+  onSave: (short: Omit<Short, '_id' | 'createdAt' | 'updatedAt'> & { _id?: string }) => void;
   editShort?: Short | null;
 }
 
@@ -24,19 +23,15 @@ export default function AddShortModal({ isOpen, onClose, onSave, editShort }: Ad
 
   const handleSave = () => {
     if (!title.trim()) return;
-    const now = new Date().toISOString();
-    const short: Short = {
-      id: editShort?.id || uuidv4(),
+    onSave({
+      _id: editShort?._id,
       title: title.trim(),
       civilization,
       status,
       scheduledDate,
       script,
       imagePrompts,
-      createdAt: editShort?.createdAt || now,
-      updatedAt: now,
-    };
-    onSave(short);
+    });
     onClose();
   };
 

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Short, CIVILIZATIONS, STATUSES, Civilization, Status } from '@/lib/types';
-import { getShortById, saveShort } from '@/lib/storage';
 import StatusBadge from '@/components/StatusBadge';
 import CivilizationBadge from '@/components/CivilizationBadge';
 import GenerateButton from '@/components/GenerateButton';
@@ -13,6 +12,7 @@ export default function ShortDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [short, setShort] = useState<Short | null>(null);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '' });
 
@@ -25,17 +25,28 @@ export default function ShortDetailPage() {
   const [imagePrompts, setImagePrompts] = useState('');
 
   useEffect(() => {
-    const id = params.id as string;
-    const found = getShortById(id);
-    if (found) {
-      setShort(found);
-      setTitle(found.title);
-      setCivilization(found.civilization);
-      setStatus(found.status);
-      setScheduledDate(found.scheduledDate);
-      setScript(found.script);
-      setImagePrompts(found.imagePrompts);
-    }
+    const fetchShort = async () => {
+      try {
+        const res = await fetch(`/api/shorts/${params.id}`);
+        if (!res.ok) {
+          setShort(null);
+          return;
+        }
+        const data = await res.json();
+        setShort(data);
+        setTitle(data.title);
+        setCivilization(data.civilization);
+        setStatus(data.status);
+        setScheduledDate(data.scheduledDate);
+        setScript(data.script);
+        setImagePrompts(data.imagePrompts);
+      } catch (err) {
+        console.error('Failed to fetch short:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchShort();
   }, [params.id]);
 
   const showToast = (message: string) => {
@@ -56,23 +67,46 @@ export default function ShortDetailPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!short) return;
-    const updated: Short = {
-      ...short,
-      title,
-      civilization,
-      status,
-      scheduledDate,
-      script,
-      imagePrompts,
-      updatedAt: new Date().toISOString(),
-    };
-    saveShort(updated);
-    setShort(updated);
-    setEditing(false);
-    showToast('Short updated successfully');
+    try {
+      const res = await fetch(`/api/shorts/${short._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          civilization,
+          status,
+          scheduledDate,
+          script,
+          imagePrompts,
+        }),
+      });
+      const updated = await res.json();
+      setShort(updated);
+      setEditing(false);
+      showToast('Short updated successfully');
+    } catch (err) {
+      console.error('Failed to update short:', err);
+      showToast('Failed to update short');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <svg
+          className="animate-spin h-8 w-8 text-[#c9a84c]"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+      </div>
+    );
+  }
 
   if (!short) {
     return (
@@ -202,7 +236,6 @@ export default function ShortDetailPage() {
               <button
                 onClick={() => {
                   setEditing(false);
-                  // Reset form to current short values
                   setTitle(short.title);
                   setCivilization(short.civilization);
                   setStatus(short.status);
@@ -225,13 +258,15 @@ export default function ShortDetailPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <CivilizationBadge civilization={short.civilization} />
                 <StatusBadge status={short.status} />
-                <span className="text-[#888888] text-sm">
-                  Scheduled: {new Date(short.scheduledDate).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
+                {short.scheduledDate && (
+                  <span className="text-[#888888] text-sm">
+                    Scheduled: {new Date(short.scheduledDate).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => setEditing(true)}
